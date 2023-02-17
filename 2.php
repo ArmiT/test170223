@@ -1,11 +1,32 @@
 <?php
 
-$questionsQ = $mysqli->query('SELECT * FROM questions WHERE catalog_id='. $catId);
-$result = array();
-while ($question = $questionsQ->fetch_assoc()) {
-    $userQ = $mysqli->query('SELECT name, gender FROM users WHERE id='. $question['user_id']);
-    $user = $userQ->fetch_assoc();
-    $result[] = array('question'=>$question, 'user'=>$user);
-    $userQ->free();
+$statement = $mysqli->prepare("
+    SELECT
+        q.*,
+        u.name,
+        u.gender
+    FROM questions q
+    INNER JOIN users u ON u.id=q.user_id
+    WHERE catalog_id=?;
+");
+
+// assumption that $catId expected is integer
+$statement->bind_param('i', $catId);
+$statement->execute();
+$rows = $statement->get_result();
+
+while ($row = $rows->fetch_assoc()) {
+    $user = [
+        'name' => $row['name'],
+        'gender' => $row['gender'],
+    ];
+
+    unset($row['name'], $row['gender']);
+
+    $result[] = [
+        'question' => $row,
+        'user' => $user,
+    ];
 }
-$questionsQ->free();
+
+$rows->free();
